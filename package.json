@@ -1,14 +1,15 @@
 {
-  "name": "pronouns-bsky",
+  "name": "orkut-bsky",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "npx tsx src/main.ts",
-    "dev": "npx tsx --watch src/main.ts"
+    "start": "tsx src/main.ts",
+    "dev": "tsx --watch src/main.ts"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20.14.10",
+    "tsx": "^4.19.0",
     "typescript": "^5.5.3"
   },
   "dependencies": {

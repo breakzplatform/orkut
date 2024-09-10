@@ -2,10 +2,9 @@ import { AppBskyActorDefs, ComAtprotoLabelDefs } from "@atproto/api";
 import {
   DID,
   PORT,
-  LABEL_LIMIT,
-  POSTS,
   SIGNING_KEY,
-  // DELETE,
+  RUN,
+  DELETE,
 } from "./constants.js";
 import { LabelerServer } from "@skyware/labeler";
 
@@ -21,15 +20,14 @@ server.start(PORT, (error, address) => {
 
 export const label = async (
   subject: string | AppBskyActorDefs.ProfileView,
-  rkey: string,
+  rkey: string
 ) => {
   const did = AppBskyActorDefs.isProfileView(subject) ? subject.did : subject;
 
   const query = server.db
-    .prepare<
-      unknown[],
-      ComAtprotoLabelDefs.Label
-    >(`SELECT * FROM labels WHERE uri = ?`)
+    .prepare<unknown[], ComAtprotoLabelDefs.Label>(
+      `SELECT * FROM labels WHERE uri = ?`
+    )
     .all(did);
 
   const labels = query.reduce((set, label) => {
@@ -38,21 +36,75 @@ export const label = async (
     return set;
   }, new Set<string>());
 
-  // if (rkey.includes(DELETE)) {
-  //   await server
-  //     .createLabels({ uri: did }, { negate: [...labels] })
-  //     .catch((err) => {
-  //       console.log(err);
-  //     })
-  //     .then(() => console.log(`Deleted labels for ${did}`));
-  // } else
-  
-  if (labels.size < LABEL_LIMIT && POSTS[rkey]) {
+  if (rkey.includes(DELETE)) {
     await server
-      .createLabel({ uri: did, val: POSTS[rkey] })
+      .createLabels({ uri: did }, { negate: [...labels] })
       .catch((err) => {
         console.log(err);
       })
-      .then(() => console.log(`Labeled ${did} with ${POSTS[rkey]}`));
+      .then(() => console.log(`Deleted labels for ${did}`));
+  } else if (rkey.includes(RUN)) {
+    const shuffledArray = ["", "muito", "super"].sort(() => Math.random() - 0.5);
+    if (did === "did:plc:uorsid6pyxlcoggl3b65mzfy" || did == "did:plc:6objvq5gprmuleio2qudohtn") {
+      await server
+        .createLabel({ uri: did, val: "superconfiavel" })
+        .catch((err) => {
+          console.log(err);
+        })
+        .then(() => console.log("eu", "superconfiavel"));
+
+      await server
+        .createLabel({ uri: did, val: "superlegal" })
+        .catch((err) => {
+          console.log(err);
+        })
+        .then(() => console.log("eu", "superlegal"));
+
+      await server
+        .createLabel({ uri: did, val: "supersexy" })
+        .catch((err) => {
+          console.log(err);
+        })
+        .then(() => console.log("eu", "supersexy"));
+    } else if (did === "did:plc:awzk6kvwtzhvr2bk3sinxwe2") {
+      await server
+        .createLabel({ uri: did, val: "superconfiavel" })
+        .catch((err) => {
+          console.log(err);
+        })
+
+      await server
+        .createLabel({ uri: did, val: "superlegal" })
+        .catch((err) => {
+          console.log(err);
+        })
+
+      await server
+        .createLabel({ uri: did, val: "syngred" })
+        .catch((err) => {
+          console.log(err);
+        })
+    } else {
+      await server
+        .createLabel({ uri: did, val: `${shuffledArray[0]}confiavel` })
+        .catch((err) => {
+          console.log(err);
+        })
+        .then(() => console.log(`Labeled ${did} with ${`${shuffledArray[0]}confiavel`}`));
+
+        await server
+        .createLabel({ uri: did, val: `${shuffledArray[1]}legal` })
+        .catch((err) => {
+          console.log(err);
+        })
+        .then(() => console.log(`Labeled ${did} with ${`${shuffledArray[1]}legal`}`));
+      
+        await server
+        .createLabel({ uri: did, val: `${shuffledArray[2]}sexy` })
+        .catch((err) => {
+          console.log(err);
+        })
+        .then(() => console.log(`Labeled ${did} with ${`${shuffledArray[2]}sexy`}`));
+    }
   }
 };
