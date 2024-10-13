@@ -5,6 +5,7 @@ import {
   SIGNING_KEY,
   RUN,
   DELETE,
+  STARS,
 } from "./constants.js";
 import { LabelerServer } from "@skyware/labeler";
 
@@ -45,6 +46,16 @@ export const label = async (
       .then(() => console.log(`Deleted labels for ${did}`));
   } else if (rkey.includes(RUN)) {
     const shuffledArray = ["", "muito", "super"].sort(() => Math.random() - 0.5);
+
+    if(STARS.includes(did)) {
+      await server
+        .createLabel({ uri: did, val: "soufa" })
+        .catch((err) => {
+          console.log(err);
+        })
+        .then(() => console.log("apoiase", "soufa"));
+    }
+
     if (did === "did:plc:uorsid6pyxlcoggl3b65mzfy" || did == "did:plc:6objvq5gprmuleio2qudohtn") {
       await server
         .createLabel({ uri: did, val: "superconfiavel" })
@@ -66,6 +77,7 @@ export const label = async (
           console.log(err);
         })
         .then(() => console.log("eu", "supersexy"));
+
     } else if (did === "did:plc:awzk6kvwtzhvr2bk3sinxwe2") {
       await server
         .createLabel({ uri: did, val: "superconfiavel" })
@@ -84,6 +96,7 @@ export const label = async (
         .catch((err) => {
           console.log(err);
         })
+
     } else {
       await server
         .createLabel({ uri: did, val: `${shuffledArray[0]}confiavel` })
