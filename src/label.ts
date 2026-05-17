@@ -1,13 +1,7 @@
-import { AppBskyActorDefs, ComAtprotoLabelDefs } from "@atproto/api";
-import {
-  DID,
-  PORT,
-  SIGNING_KEY,
-  RUN,
-  DELETE,
-  STARS,
-} from "./constants.js";
+import { AppBskyActorDefs } from "@atproto/api";
+import { DID, PORT, SIGNING_KEY, RUN, DELETE } from "./constants.js";
 import { LabelerServer } from "@skyware/labeler";
+import fs from "node:fs";
 
 const server = new LabelerServer({ did: DID, signingKey: SIGNING_KEY });
 
@@ -19,105 +13,90 @@ server.start(PORT, (error, address) => {
   }
 });
 
+const SUPPORTERS_FILE = "supporters.json";
+
+type SupporterMap = Record<string, string[]>;
+
+// Re-read on every event so editing supporters.json takes effect without a restart.
+const loadSupporters = (): SupporterMap => {
+  try {
+    return JSON.parse(fs.readFileSync(SUPPORTERS_FILE, "utf8")) as SupporterMap;
+  } catch (err) {
+    console.error(`Could not read ${SUPPORTERS_FILE}:`, err);
+    return {};
+  }
+};
+
+const DEFAULT_PREFIXES = ["", "muito", "super"];
+const DEFAULT_CATEGORIES = ["confiavel", "legal", "sexy"];
+const DEFAULT_LABELS = new Set(
+  DEFAULT_PREFIXES.flatMap((prefix) =>
+    DEFAULT_CATEGORIES.map((category) => `${prefix}${category}`)
+  )
+);
+
+const randomDefaultLabels = (): string[] => {
+  const prefixes = [...DEFAULT_PREFIXES].sort(() => Math.random() - 0.5);
+  return DEFAULT_CATEGORIES.map(
+    (category, index) => `${prefixes[index]}${category}`
+  );
+};
+
+const currentLabels = (did: string): Set<string> => {
+  const rows = server.db
+    .prepare(`SELECT val, neg FROM labels WHERE uri = ?`)
+    .all(did) as Array<{ val: string; neg?: number | boolean }>;
+
+  const set = new Set<string>();
+  for (const row of rows) {
+    if (row.neg) set.delete(row.val);
+    else set.add(row.val);
+  }
+  return set;
+};
+
+const applyMissing = async (did: string, desired: string[], have: Set<string>) => {
+  const missing = desired.filter((val) => !have.has(val));
+  for (const val of missing) {
+    try {
+      await server.createLabel({ uri: did, val });
+      console.log(`Labeled ${did} with ${val}`);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+};
+
 export const label = async (
   subject: string | AppBskyActorDefs.ProfileView,
   rkey: string
 ) => {
   const did = AppBskyActorDefs.isProfileView(subject) ? subject.did : subject;
-
-  const query = server.db
-    .prepare<unknown[], ComAtprotoLabelDefs.Label>(
-      `SELECT * FROM labels WHERE uri = ?`
-    )
-    .all(did);
-
-  const labels = query.reduce((set, label) => {
-    if (!label.neg) set.add(label.val);
-    else set.delete(label.val);
-    return set;
-  }, new Set<string>());
+  const have = currentLabels(did);
 
   if (rkey.includes(DELETE)) {
-    await server
-      .createLabels({ uri: did }, { negate: [...labels] })
-      .catch((err) => {
-        console.log(err);
-      })
-      .then(() => console.log(`Deleted labels for ${did}`));
-  } else if (rkey.includes(RUN)) {
-    const shuffledArray = ["", "muito", "super"].sort(() => Math.random() - 0.5);
-
-    if(STARS.includes(did)) {
-      await server
-        .createLabel({ uri: did, val: "soufa" })
-        .catch((err) => {
-          console.log(err);
-        })
-        .then(() => console.log("apoiase", "soufa"));
+    try {
+      await server.createLabels({ uri: did }, { negate: [...have] });
+      console.log(`Deleted labels for ${did}`);
+    } catch (err) {
+      console.error(err);
     }
-
-    if (did === "did:plc:uorsid6pyxlcoggl3b65mzfy" || did == "did:plc:6objvq5gprmuleio2qudohtn") {
-      await server
-        .createLabel({ uri: did, val: "superconfiavel" })
-        .catch((err) => {
-          console.log(err);
-        })
-        .then(() => console.log("eu", "superconfiavel"));
-
-      await server
-        .createLabel({ uri: did, val: "superlegal" })
-        .catch((err) => {
-          console.log(err);
-        })
-        .then(() => console.log("eu", "superlegal"));
-
-      await server
-        .createLabel({ uri: did, val: "supersexy" })
-        .catch((err) => {
-          console.log(err);
-        })
-        .then(() => console.log("eu", "supersexy"));
-
-    } else if (did === "did:plc:awzk6kvwtzhvr2bk3sinxwe2") {
-      await server
-        .createLabel({ uri: did, val: "superconfiavel" })
-        .catch((err) => {
-          console.log(err);
-        })
-
-      await server
-        .createLabel({ uri: did, val: "superlegal" })
-        .catch((err) => {
-          console.log(err);
-        })
-
-      await server
-        .createLabel({ uri: did, val: "syngred" })
-        .catch((err) => {
-          console.log(err);
-        })
-
-    } else {
-      await server
-        .createLabel({ uri: did, val: `${shuffledArray[0]}confiavel` })
-        .catch((err) => {
-          console.log(err);
-        })
-        .then(() => console.log(`Labeled ${did} with ${`${shuffledArray[0]}confiavel`}`));
-
-        await server
-        .createLabel({ uri: did, val: `${shuffledArray[1]}legal` })
-        .catch((err) => {
-          console.log(err);
-        })
-        .then(() => console.log(`Labeled ${did} with ${`${shuffledArray[1]}legal`}`));
-      
-        await server
-        .createLabel({ uri: did, val: `${shuffledArray[2]}sexy` })
-        .catch((err) => {
-          console.log(err);
-        })
-        .then(() => console.log(`Labeled ${did} with ${`${shuffledArray[2]}sexy`}`));
-    }
+    return;
   }
+
+  if (!rkey.includes(RUN)) return;
+
+  const supporters = loadSupporters();
+  const supporterLabels = supporters[did];
+
+  if (supporterLabels) {
+    await applyMissing(did, supporterLabels, have);
+    return;
+  }
+
+  // Idempotent: a default trio is assigned once and never stacked on re-likes.
+  const alreadyAssigned = [...have].some((val) => DEFAULT_LABELS.has(val));
+  if (alreadyAssigned) return;
+
+  await applyMissing(did, randomDefaultLabels(), have);
 };
