@@ -335,9 +335,23 @@ Sessão Claude não migra entre máquinas nativamente. Caminho confiável:
       buildar/testar no home lab amd64
 - [x] Domínio novo definido: `orkut.xn--wg8h.joseli.to` (Cloudflare Tunnel)
 - [x] Compose: porta só em `127.0.0.1:41401` (tunnel é no HOST, não no compose)
-- [ ] (Você) Criar/instalar o `cloudflared` no host → `http://127.0.0.1:41401`
-- [x] Script da troca de endpoint pronto — `scripts/change-labeler-endpoint.ts`
-- [ ] (Conjunto) Cutover §6 incluindo troca do endpoint §5.3; depois, limpeza §7
+- [x] Cloudflared no host (tunnel remoto, hostname `orkut.xn--wg8h.joseli.to`
+      → `127.0.0.1:41401`); queryLabels + subscribeLabels validados via edge
+- [x] Script da troca de endpoint pronto e **corrigido** — montava a operação
+      a partir de `getRecommendedDidCredentials` (que omite `atproto_label` e
+      `atproto_labeler` → orfanaria todos os labels); agora usa o DID doc real
+- [x] **Cutover CONCLUÍDO** — `#atproto_labeler` no DID doc trocado para
+      `https://orkut.xn--wg8h.joseli.to`; `atproto_label`/rotation/PDS/handle
+      idênticos; rodando em Docker no home lab. VM parada como rollback.
+- [x] Supervisor de reconexão do firehose em `src/main.ts` (substitui o cron)
 
-Decisões já fechadas: host amd64; reset diário do cursor **mantido** (cron no
-host: zera `cursor.txt` + `docker restart orkut` às 4h).
+Decisões já fechadas: host amd64. **Reset diário por cron REMOVIDO** — a causa
+raiz era o auto-reconnect quebrado do `@skyware/firehose` 0.3.2 (watchdog
+preso ao handler de `message`, que se autodesarma após uma reconexão sem
+tráfego; o evento `close` não reconecta). `src/main.ts` agora é um supervisor:
+`autoReconnect:false` + reconexão própria em `close`/`websocketError`/stall
+(sem eventos por 45s) a partir do cursor salvo, com backoff. Reconecta em
+segundos com o cursor preservado → o relay reenvia o backlog → **zero perda**
+em quedas transitórias (o cron antigo zerava o cursor e perdia ~1 min de likes
+todo dia às 4h). Não instalar o cron; `cleaner-docker.sh` fica como
+ferramenta manual de emergência apenas.
