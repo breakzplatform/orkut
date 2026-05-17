@@ -5,7 +5,10 @@ import fs from "node:fs";
 
 const server = new LabelerServer({ did: DID, signingKey: SIGNING_KEY });
 
-server.start(PORT, (error, address) => {
+// skyware 0.1.13's server.start() binds Fastify to localhost only, which the
+// Docker published port can't reach. Bind all interfaces via the underlying
+// Fastify instance instead (container port is published to host loopback only).
+server.app.listen({ port: PORT, host: "0.0.0.0" }, (error, address) => {
   if (error) {
     console.error(error);
   } else {
