@@ -51,9 +51,19 @@ const main = async () => {
     fail(`Logged-in DID ${agent.did} != expected ${DID}.`);
   }
 
-  // Current credentials in the exact shape signPlcOperation expects.
-  const { data: creds } =
-    await agent.com.atproto.identity.getRecommendedDidCredentials();
+  // Source of truth must be the live PLC doc, NOT
+  // getRecommendedDidCredentials: the bsky.social PDS only "recommends" the
+  // identity bits it manages (PDS/handle/atproto key) and OMITS the
+  // out-of-band #atproto_label key and #atproto_labeler service. Building the
+  // op from the recommended creds would drop both and orphan every label.
+  const creds = (await (
+    await fetch(`https://plc.directory/${DID}/data`)
+  ).json()) as {
+    verificationMethods?: Record<string, string>;
+    rotationKeys?: string[];
+    alsoKnownAs?: string[];
+    services?: Record<string, { type: string; endpoint: string }>;
+  };
 
   const services = (creds.services ?? {}) as Record<
     string,
