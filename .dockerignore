@@ -1,0 +1,12 @@
+node_modules
+.git
+.env
+labels.db*
+cursor.txt
+cursor
+*.log
+.DS_Store
+scripts
+PRESERVACAO-E-UPGRADE.md
+data
+../orkut-bkp
