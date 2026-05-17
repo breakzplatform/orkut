@@ -4,3 +4,4 @@ cursor.txt
 *.log
 labels.db*
 .DS_Store
+data/
