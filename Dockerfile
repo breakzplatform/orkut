@@ -1,11 +1,11 @@
 # Same pinned dependency versions as the working VM — no upgrade.
-FROM node:20-bookworm AS deps
+FROM node:24-bookworm AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 # Build toolchain present for any native module that needs to compile (libsql).
 RUN npm ci
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
